@@ -1,38 +1,23 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { db } from "./db";
+import {
+  shapes,
+  type Shape,
+  type InsertShape
+} from "@shared/schema";
+import { eq } from "drizzle-orm";
 
-// modify the interface with any CRUD methods
-// you might need
-
+// Minimal storage implementation to satisfy server structure
+// The app is frontend-only for the core logic
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  // We can leave this empty or minimal for now as requirements specified no backend usage
+  // but we provide the structure in case it's needed later.
+  getShapes(): Promise<Shape[]>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-
-  constructor() {
-    this.users = new Map();
-  }
-
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+export class DatabaseStorage implements IStorage {
+  async getShapes(): Promise<Shape[]> {
+    return await db.select().from(shapes);
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
