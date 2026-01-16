@@ -1,0 +1,78 @@
+Add MOVE (DRAG) and OPEN/CLOSE behavior for selected shapes and the shape details panel.
+
+SCOPE IS STRICTLY LIMITED TO:
+- Moving selected polygonal shapes on the map
+- Opening and closing the shape details panel
+
+--------------------------------
+1) SHAPE MOVE (DRAG) FUNCTIONALITY
+--------------------------------
+- Allow ONLY selected shapes to be movable.
+- Applies to:
+  - Polygon
+  - Rectangle
+  - Circle
+- LineString movement is optional but allowed.
+
+BEHAVIOR:
+- When a shape is selected (from map or layers list):
+  - Enable drag mode for that shape.
+  - User must be able to move the shape freely in all directions.
+- Show visual feedback while dragging (highlighted border).
+
+RULES:
+- After drag ends:
+  - Recalculate and update the shape’s geometry.
+  - Update center coordinates.
+  - Update area / length if applicable.
+- Re-apply existing overlap constraints AFTER movement:
+  - If move causes full enclosure → revert move and show error.
+  - If partial overlap → auto-trim and save trimmed geometry.
+
+IMPORTANT:
+- Do NOT allow movement of unselected shapes.
+- Do NOT create duplicate shapes.
+- Movement must update state and GeoJSON correctly.
+
+--------------------------------
+2) SHAPE DETAILS PANEL OPEN / CLOSE
+--------------------------------
+- Shape details panel must be TOGGLABLE.
+
+OPEN:
+- Opens automatically when:
+  - A shape is clicked on the map
+  - OR a shape is clicked in the layers list
+
+CLOSE:
+- Close button (X) must:
+  - Deselect the current shape
+  - Hide the details panel
+- Closing the panel should NOT delete the shape.
+
+TOGGLE BEHAVIOR:
+- Clicking the same selected shape again:
+  - Should NOT close the panel
+- Clicking a different shape:
+  - Should update the panel content (not close/open animation)
+
+--------------------------------
+VISUAL & UX REQUIREMENTS:
+--------------------------------
+- Show selected shape with highlighted border on the map.
+- Disable dragging when details panel is closed.
+- Smooth drag interaction (no flicker).
+- Panel open/close should feel instant or use a subtle slide animation.
+
+--------------------------------
+IMPORTANT CONSTRAINTS:
+--------------------------------
+- Do NOT add new UI panels.
+- Do NOT change drawing tools.
+- Do NOT change export or search logic.
+- Modify only selection, dragging, and panel toggle behavior.
+
+EXPECTED RESULT:
+- User can select a polygon from the side panel and move it freely on the map.
+- Shape details panel can be cleanly opened and closed.
+- Shape geometry updates correctly after movement.
