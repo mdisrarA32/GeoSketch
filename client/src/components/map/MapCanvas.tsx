@@ -64,6 +64,16 @@ function MapEvents({ mode, setMode, onShapeCreated }: { mode: DrawingMode, setMo
         finishShape('circle', circlePoly);
       }
     },
+    dblclick(e) {
+      // Double click to finish Polygon or Line
+      if (mode === 'polygon' && points.length >= 3) {
+         const geoJson = L.polygon(points).toGeoJSON();
+         finishShape('polygon', geoJson);
+      } else if (mode === 'line' && points.length >= 2) {
+         const geoJson = L.polyline(points).toGeoJSON();
+         finishShape('line', geoJson);
+      }
+    },
     mousemove(e) {
       if (points.length === 0) return;
 

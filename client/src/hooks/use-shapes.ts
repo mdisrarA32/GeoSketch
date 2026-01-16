@@ -45,25 +45,27 @@ export function useShapes() {
       // Only for Polygon, Rectangle (which is a polygon in GeoJSON), and Circle (approximated)
       if (newShape.type !== 'line') {
         const newGeo = newShape.geoJson as any;
+        const newFeature = turf.feature(newGeo.geometry || newGeo);
         
         for (const existing of prev) {
           if (existing.type === 'line') continue;
           
           const existingGeo = existing.geoJson as any;
+          const existingFeature = turf.feature(existingGeo.geometry || existingGeo);
 
           // Check if new shape is INSIDE an existing shape
           try {
-            if (turf.booleanContains(existingGeo, newGeo)) {
+            if (turf.booleanContains(existingFeature, newFeature) || turf.booleanWithin(newFeature, existingFeature)) {
               toast({
                 title: "Invalid Placement",
-                description: "New shape cannot be completely inside an existing shape.",
+                description: "New shape cannot be completely inside or enclose an existing shape.",
                 variant: "destructive",
               });
               return prev;
             }
 
             // Check if new shape CONTAINS an existing shape
-            if (turf.booleanContains(newGeo, existingGeo)) {
+            if (turf.booleanContains(newFeature, existingFeature)) {
               toast({
                 title: "Invalid Placement",
                 description: "New shape cannot completely enclose an existing shape.",
@@ -81,15 +83,22 @@ export function useShapes() {
       let finalGeo = newShape.geoJson as any;
       
       if (newShape.type !== 'line') {
+        let finalFeature = turf.feature(finalGeo.geometry || finalGeo);
+
         for (const existing of prev) {
           if (existing.type === 'line') continue;
           
           try {
             const existingGeo = existing.geoJson as any;
-            if (turf.booleanOverlap(finalGeo, existingGeo) || turf.intersect(finalGeo, existingGeo)) {
-               const difference = turf.difference(finalGeo, existingGeo);
-               if (difference) {
-                 finalGeo = difference;
+            const existingFeature = turf.feature(existingGeo.geometry || existingGeo);
+
+            // Using booleanIntersects for broader detection
+            if (turf.booleanIntersects(finalFeature, existingFeature)) {
+               // Calculate difference: finalFeature - existingFeature
+               const diff = turf.difference(turf.featureCollection([finalFeature, existingFeature]));
+               
+               if (diff) {
+                 finalFeature = diff;
                  toast({
                    title: "Shape Trimmed",
                    description: "Overlapping area was automatically removed.",
@@ -108,6 +117,7 @@ export function useShapes() {
              console.warn("Overlap check failed", err);
           }
         }
+        finalGeo = finalFeature.geometry;
       }
       
       // Recalculate area/length if geometry changed
