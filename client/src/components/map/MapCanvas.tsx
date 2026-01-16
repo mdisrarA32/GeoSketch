@@ -43,6 +43,39 @@ function MapEvents({ mode, setMode, onShapeCreated }: { mode: DrawingMode, setMo
     }
   }, [mode, map]);
 
+  useEffect(() => {
+    const handleZoomIn = () => map.zoomIn();
+    const handleZoomOut = () => map.zoomOut();
+    window.addEventListener('map-zoom-in', handleZoomIn);
+    window.addEventListener('map-zoom-out', handleZoomOut);
+    return () => {
+      window.removeEventListener('map-zoom-in', handleZoomIn);
+      window.removeEventListener('map-zoom-out', handleZoomOut);
+    };
+  }, [map]);
+
+  const finishShape = (type: string, geoJson: any) => {
+    let measurements = {};
+    
+    if (type === 'line') {
+      measurements = { length: turf.length(geoJson, { units: 'meters' }) };
+    } else {
+      measurements = { area: turf.area(geoJson) };
+    }
+
+    const newShape: Shape = {
+      id: uuidv4(),
+      name: `New ${type.charAt(0).toUpperCase() + type.slice(1)}`,
+      type,
+      geoJson,
+      measurements,
+      createdAt: new Date().toISOString(),
+    };
+
+    onShapeCreated(newShape);
+    setMode('select'); // Reset mode
+  };
+
   useMapEvents({
     click(e) {
       if (mode === 'select') return;
@@ -85,12 +118,12 @@ function MapEvents({ mode, setMode, onShapeCreated }: { mode: DrawingMode, setMo
       if (mode === 'line') {
         tempLayerRef.current = L.polyline([...points, e.latlng], { color: 'blue', dashArray: '5, 10' }).addTo(map);
       } else if (mode === 'polygon') {
-         tempLayerRef.current = L.polygon([...points, e.latlng], { color: 'blue', dashArray: '5, 10' }).addTo(map);
+        tempLayerRef.current = L.polygon([...points, e.latlng], { color: 'blue', dashArray: '5, 10' }).addTo(map);
       } else if (mode === 'rectangle') {
-         tempLayerRef.current = L.rectangle(L.latLngBounds(points[0], e.latlng), { color: 'blue', dashArray: '5, 10' }).addTo(map);
+        tempLayerRef.current = L.rectangle(L.latLngBounds(points[0], e.latlng), { color: 'blue', dashArray: '5, 10' }).addTo(map);
       } else if (mode === 'circle') {
-         const radius = points[0].distanceTo(e.latlng);
-         tempLayerRef.current = L.circle(points[0], { radius, color: 'blue', dashArray: '5, 10' }).addTo(map);
+        const radius = points[0].distanceTo(e.latlng);
+        tempLayerRef.current = L.circle(points[0], { radius, color: 'blue', dashArray: '5, 10' }).addTo(map);
       }
     },
     contextmenu() {
@@ -109,28 +142,6 @@ function MapEvents({ mode, setMode, onShapeCreated }: { mode: DrawingMode, setMo
       }
     }
   });
-
-  const finishShape = (type: string, geoJson: any) => {
-    let measurements = {};
-    
-    if (type === 'line') {
-      measurements = { length: turf.length(geoJson, { units: 'meters' }) };
-    } else {
-      measurements = { area: turf.area(geoJson) };
-    }
-
-    const newShape: Shape = {
-      id: uuidv4(),
-      name: `New ${type.charAt(0).toUpperCase() + type.slice(1)}`,
-      type,
-      geoJson,
-      measurements,
-      createdAt: new Date().toISOString(),
-    };
-
-    onShapeCreated(newShape);
-    setMode('select'); // Reset mode
-  };
 
   return null;
 }
@@ -155,6 +166,14 @@ function MapController({ selectedShape, searchLocation }: { selectedShape: Shape
   return null;
 }
 
+// Shape colors based on requirements
+const SHAPE_STYLES: Record<string, any> = {
+  rectangle: { color: '#f97316', fillColor: '#fb923c', weight: 2, opacity: 0.8, fillOpacity: 0.3 }, // Orange
+  circle: { color: '#ec4899', fillColor: '#f472b6', weight: 2, opacity: 0.8, fillOpacity: 0.3 },    // Pink
+  polygon: { color: '#3b82f6', fillColor: '#60a5fa', weight: 2, opacity: 0.8, fillOpacity: 0.3 },   // Blue
+  line: { color: '#ef4444', weight: 3, opacity: 0.8 },                                             // Red
+};
+
 export function MapCanvas({ 
   mode, 
   setMode, 
@@ -168,49 +187,54 @@ export function MapCanvas({
   const selectedShape = shapes.find(s => s.id === selectedShapeId) || null;
 
   return (
-    <MapContainer 
-      center={[51.505, -0.09]} 
-      zoom={13} 
-      className="w-full h-full"
-      zoomControl={false} // We'll add custom positioned controls if needed, or stick to default styled via CSS
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+    <div className="w-full h-full relative">
+      <MapContainer 
+        center={[51.505, -0.09]} 
+        zoom={13} 
+        className="w-full h-full z-0"
+        zoomControl={false}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
 
-      <MapEvents mode={mode} setMode={setMode} onShapeCreated={onShapeCreated} />
-      <MapController selectedShape={selectedShape} searchLocation={searchLocation} />
+        <MapEvents mode={mode} setMode={setMode} onShapeCreated={onShapeCreated} />
+        <MapController selectedShape={selectedShape} searchLocation={searchLocation} />
 
-      {/* Render Shapes */}
-      <FeatureGroup>
-        {shapes.map((shape) => (
-          <GeoJSON 
-            key={shape.id} 
-            data={shape.geoJson as any}
-            style={() => ({
-              color: shape.id === selectedShapeId ? '#7c3aed' : '#3b82f6',
-              weight: shape.id === selectedShapeId ? 4 : 2,
-              opacity: 0.8,
-              fillOpacity: shape.id === selectedShapeId ? 0.4 : 0.2,
-            })}
-            eventHandlers={{
-              click: (e) => {
-                L.DomEvent.stopPropagation(e);
-                onSelectShape(shape.id);
-              }
-            }}
-          />
-        ))}
-      </FeatureGroup>
+        {/* Render Shapes */}
+        <FeatureGroup>
+          {shapes.map((shape) => (
+            <GeoJSON 
+              key={shape.id} 
+              data={shape.geoJson as any}
+              style={() => {
+                const baseStyle = SHAPE_STYLES[shape.type] || SHAPE_STYLES.polygon;
+                const isSelected = shape.id === selectedShapeId;
+                return {
+                  ...baseStyle,
+                  weight: isSelected ? baseStyle.weight + 2 : baseStyle.weight,
+                  fillOpacity: isSelected ? baseStyle.fillOpacity + 0.2 : baseStyle.fillOpacity,
+                  color: isSelected ? '#ffffff' : baseStyle.color,
+                };
+              }}
+              eventHandlers={{
+                click: (e) => {
+                  L.DomEvent.stopPropagation(e);
+                  onSelectShape(shape.id);
+                }
+              }}
+            />
+          ))}
+        </FeatureGroup>
 
-      {/* Search Result Marker */}
-      {searchLocation && (
-        <Marker position={searchLocation}>
-          <Popup>Search Result</Popup>
-        </Marker>
-      )}
-
-    </MapContainer>
+        {/* Search Result Marker */}
+        {searchLocation && (
+          <Marker position={searchLocation}>
+            <Popup>Search Result</Popup>
+          </Marker>
+        )}
+      </MapContainer>
+    </div>
   );
 }

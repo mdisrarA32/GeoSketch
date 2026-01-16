@@ -29,25 +29,9 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-screen w-full bg-background overflow-hidden">
-      {/* Sidebar */}
-      <Sidebar
-        shapes={shapes}
-        selectedId={selectedShapeId}
-        onSelectShape={setSelectedShapeId}
-        onDeleteShape={removeShape}
-        onSearchSelect={(lat, lon) => setSearchLocation([lat, lon])}
-        onExport={handleExport}
-      />
-
-      {/* Main Content */}
-      <div className="flex-1 relative h-full">
-        <DrawToolbar
-          mode={drawingMode}
-          setMode={setDrawingMode}
-          onCancel={() => setDrawingMode("select")}
-        />
-        
+    <div className="relative h-screen w-screen overflow-hidden bg-background">
+      {/* Map takes up the full background */}
+      <div className="absolute inset-0 z-0">
         <MapCanvas
           mode={drawingMode}
           setMode={setDrawingMode}
@@ -57,8 +41,29 @@ export default function Home() {
           onSelectShape={setSelectedShapeId}
           searchLocation={searchLocation}
         />
-        
-        {/* Attribution overlay if needed, or stick to map corner */}
+      </div>
+
+      {/* Left Toolbar */}
+      <div className="absolute left-6 top-1/2 -translate-y-1/2 z-20">
+        <DrawToolbar
+          mode={drawingMode}
+          setMode={setDrawingMode}
+          onCancel={() => setDrawingMode("select")}
+        />
+      </div>
+
+      {/* Right Sidebar - Floating Card Style */}
+      <div className="absolute right-6 top-6 bottom-6 z-20 pointer-events-none">
+        <div className="h-full pointer-events-auto">
+          <Sidebar
+            shapes={shapes}
+            selectedId={selectedShapeId}
+            onSelectShape={setSelectedShapeId}
+            onDeleteShape={removeShape}
+            onSearchSelect={(lat, lon) => setSearchLocation([lat, lon])}
+            onExport={handleExport}
+          />
+        </div>
       </div>
     </div>
   );
