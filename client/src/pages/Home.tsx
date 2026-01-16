@@ -11,7 +11,7 @@ export default function Home() {
   const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
   const [searchLocation, setSearchLocation] = useState<[number, number] | null>(null);
   
-  const { shapes, addShape, removeShape } = useShapes();
+  const { shapes, addShape, removeShape, updateShape } = useShapes();
   const { toast } = useToast();
 
   const selectedShape = shapes.find(s => s.id === selectedShapeId) || null;
@@ -40,6 +40,7 @@ export default function Home() {
           setMode={setDrawingMode}
           shapes={shapes}
           onShapeCreated={addShape}
+          onShapeUpdated={updateShape}
           selectedShapeId={selectedShapeId}
           onSelectShape={setSelectedShapeId}
           searchLocation={searchLocation}
