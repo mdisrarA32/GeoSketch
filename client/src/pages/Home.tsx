@@ -11,7 +11,7 @@ export default function Home() {
   const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
   const [searchLocation, setSearchLocation] = useState<[number, number] | null>(null);
   
-  const { shapes, addShape, removeShape, updateShape } = useShapes();
+  const { shapes, addShape, removeShape, updateShape, undo, redo, canUndo, canRedo } = useShapes();
   const { toast } = useToast();
 
   const selectedShape = shapes.find(s => s.id === selectedShapeId) || null;
@@ -33,7 +33,6 @@ export default function Home() {
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-background">
-      {/* Map takes up the full background */}
       <div className="absolute inset-0 z-0">
         <MapCanvas
           mode={drawingMode}
@@ -47,18 +46,19 @@ export default function Home() {
         />
       </div>
 
-      {/* Left Interface Area */}
       <div className="absolute left-6 top-6 bottom-6 z-20 flex gap-6 pointer-events-none">
-        {/* Left Toolbar */}
         <div className="flex flex-col justify-center pointer-events-auto">
           <DrawToolbar
             mode={drawingMode}
             setMode={setDrawingMode}
             onCancel={() => setDrawingMode("select")}
+            onUndo={undo}
+            onRedo={redo}
+            canUndo={canUndo}
+            canRedo={canRedo}
           />
         </div>
 
-        {/* Left Details Panel (Floating) */}
         <div className="h-full pointer-events-auto">
           <ShapeDetailsPanel
             shape={selectedShape}
@@ -71,7 +71,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Right Sidebar - Floating Card Style */}
       <div className="absolute right-6 top-6 bottom-6 z-20 pointer-events-none">
         <div className="h-full pointer-events-auto">
           <Sidebar

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { type Shape, SHAPE_LIMITS } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import * as turf from "@turf/turf";
@@ -7,28 +7,62 @@ const STORAGE_KEY = "gis_app_shapes_v1";
 
 export function useShapes() {
   const [shapes, setShapes] = useState<Shape[]>([]);
+  const [history, setHistory] = useState<Shape[][]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
   const { toast } = useToast();
+  const isInternalUpdate = useRef(false);
 
   // Load from local storage on mount
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
-        setShapes(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+        setShapes(parsed);
+        setHistory([parsed]);
+        setHistoryIndex(0);
       } catch (e) {
         console.error("Failed to parse shapes", e);
       }
+    } else {
+      setHistory([[]]);
+      setHistoryIndex(0);
     }
   }, []);
 
   // Save to local storage whenever shapes change
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(shapes));
+    
+    if (!isInternalUpdate.current) {
+      const newHistory = history.slice(0, historyIndex + 1);
+      newHistory.push(shapes);
+      setHistory(newHistory);
+      setHistoryIndex(newHistory.length - 1);
+    }
+    isInternalUpdate.current = false;
   }, [shapes]);
+
+  const undo = useCallback(() => {
+    if (historyIndex > 0) {
+      isInternalUpdate.current = true;
+      const prevIndex = historyIndex - 1;
+      setShapes(history[prevIndex]);
+      setHistoryIndex(prevIndex);
+    }
+  }, [history, historyIndex]);
+
+  const redo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      isInternalUpdate.current = true;
+      const nextIndex = historyIndex + 1;
+      setShapes(history[nextIndex]);
+      setHistoryIndex(nextIndex);
+    }
+  }, [history, historyIndex]);
 
   const addShape = useCallback((newShape: Shape) => {
     setShapes((prev) => {
-      // Check limits
       const typeCount = prev.filter((s) => s.type === newShape.type).length;
       const limit = SHAPE_LIMITS[newShape.type as keyof typeof SHAPE_LIMITS] || 100;
       
@@ -41,8 +75,6 @@ export function useShapes() {
         return prev;
       }
 
-      // Check Spatial Constraints (Containment)
-      // Only for Polygon, Rectangle (which is a polygon in GeoJSON), and Circle (approximated)
       if (newShape.type !== 'line') {
         const newGeo = newShape.geoJson as any;
         const newFeature = turf.feature(newGeo.geometry || newGeo);
@@ -53,7 +85,6 @@ export function useShapes() {
           const existingGeo = existing.geoJson as any;
           const existingFeature = turf.feature(existingGeo.geometry || existingGeo);
 
-          // Check if new shape is INSIDE an existing shape
           try {
             if (turf.booleanContains(existingFeature, newFeature) || turf.booleanWithin(newFeature, existingFeature)) {
               toast({
@@ -64,7 +95,6 @@ export function useShapes() {
               return prev;
             }
 
-            // Check if new shape CONTAINS an existing shape
             if (turf.booleanContains(newFeature, existingFeature)) {
               toast({
                 title: "Invalid Placement",
@@ -79,9 +109,7 @@ export function useShapes() {
         }
       }
 
-      // Check Overlaps & Trim
       let finalGeo = newShape.geoJson as any;
-      
       if (newShape.type !== 'line') {
         let finalFeature = turf.feature(finalGeo.geometry || finalGeo);
 
@@ -92,11 +120,8 @@ export function useShapes() {
             const existingGeo = existing.geoJson as any;
             const existingFeature = turf.feature(existingGeo.geometry || existingGeo);
 
-            // Using booleanIntersects for broader detection
             if (turf.booleanIntersects(finalFeature, existingFeature)) {
-               // Calculate difference: finalFeature - existingFeature
                const diff = turf.difference(turf.featureCollection([finalFeature, existingFeature]));
-               
                if (diff) {
                  finalFeature = diff;
                  toast({
@@ -104,7 +129,6 @@ export function useShapes() {
                    description: "Overlapping area was automatically removed.",
                  });
                } else {
-                 // Completely overlapped/consumed
                  toast({
                    title: "Invalid Placement",
                    description: "Shape completely overlaps with existing area.",
@@ -120,20 +144,17 @@ export function useShapes() {
         finalGeo = finalFeature.geometry;
       }
       
-      // Recalculate area/length if geometry changed
       let newMeasurements = newShape.measurements;
       if (newShape.type !== 'line') {
         const areaSqM = turf.area(finalGeo);
         newMeasurements = { area: areaSqM };
       }
 
-      const shapeToAdd = { 
+      return [...prev, { 
         ...newShape, 
         geoJson: finalGeo,
         measurements: newMeasurements
-      };
-
-      return [...prev, shapeToAdd];
+      }];
     });
   }, [toast]);
 
@@ -142,8 +163,8 @@ export function useShapes() {
     toast({ title: "Shape Deleted", description: "The shape has been removed." });
   }, [toast]);
 
-  const updateShape = useCallback((id: string, updates: Partial<Shape>) => {
-    setShapes((prev) => prev.map((s) => (s.id === id ? { ...s, ...updates } : s)));
+  const updateShape = useCallback((updatedShape: Shape) => {
+    setShapes((prev) => prev.map((s) => (s.id === updatedShape.id ? updatedShape : s)));
   }, []);
 
   return {
@@ -151,5 +172,9 @@ export function useShapes() {
     addShape,
     removeShape,
     updateShape,
+    undo,
+    redo,
+    canUndo: historyIndex > 0,
+    canRedo: historyIndex < history.length - 1
   };
 }

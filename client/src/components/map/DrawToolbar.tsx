@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
-  MousePointer2, 
   Hexagon, 
   Square, 
   Circle as CircleIcon, 
@@ -10,10 +9,8 @@ import {
   Minus,
   Undo2,
   Redo2,
-  SeparatorHorizontal
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useMap } from "react-leaflet";
 
 export type DrawingMode = "select" | "polygon" | "rectangle" | "circle" | "line";
 
@@ -21,15 +18,13 @@ interface DrawToolbarProps {
   mode: DrawingMode;
   setMode: (mode: DrawingMode) => void;
   onCancel: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
 }
 
-export function DrawToolbar({ mode, setMode, onCancel }: DrawToolbarProps) {
-  // We need access to the map for zoom controls
-  // But DrawToolbar is rendered inside Home, not MapContainer
-  // We'll handle this by letting the map events handle the logic if needed, 
-  // or just using a standard zoom trigger. 
-  // For now, let's keep the UI strictly as requested.
-
+export function DrawToolbar({ mode, setMode, onUndo, onRedo, canUndo, canRedo }: DrawToolbarProps) {
   const drawingTools = [
     { id: "polygon", icon: Hexagon, label: "Draw Polygon" },
     { id: "rectangle", icon: Square, label: "Draw Rectangle" },
@@ -70,10 +65,7 @@ export function DrawToolbar({ mode, setMode, onCancel }: DrawToolbarProps) {
             variant="ghost"
             size="icon"
             className="h-10 w-10 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800"
-            onClick={() => {
-              // This will be handled via a global event or prop if we want it to work perfectly
-              window.dispatchEvent(new CustomEvent('map-zoom-in'));
-            }}
+            onClick={() => window.dispatchEvent(new CustomEvent('map-zoom-in'))}
           >
             <Plus className="h-5 w-5" />
           </Button>
@@ -87,9 +79,7 @@ export function DrawToolbar({ mode, setMode, onCancel }: DrawToolbarProps) {
             variant="ghost"
             size="icon"
             className="h-10 w-10 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800"
-            onClick={() => {
-              window.dispatchEvent(new CustomEvent('map-zoom-out'));
-            }}
+            onClick={() => window.dispatchEvent(new CustomEvent('map-zoom-out'))}
           >
             <Minus className="h-5 w-5" />
           </Button>
@@ -104,7 +94,9 @@ export function DrawToolbar({ mode, setMode, onCancel }: DrawToolbarProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="h-10 w-10 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800"
+            disabled={!canUndo}
+            className="h-10 w-10 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-30"
+            onClick={onUndo}
           >
             <Undo2 className="h-5 w-5" />
           </Button>
@@ -117,7 +109,9 @@ export function DrawToolbar({ mode, setMode, onCancel }: DrawToolbarProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="h-10 w-10 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800"
+            disabled={!canRedo}
+            className="h-10 w-10 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-30"
+            onClick={onRedo}
           >
             <Redo2 className="h-5 w-5" />
           </Button>
