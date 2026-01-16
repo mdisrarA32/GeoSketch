@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Sidebar } from "@/components/sidebar/Sidebar";
 import { MapCanvas } from "@/components/map/MapCanvas";
 import { DrawToolbar, DrawingMode } from "@/components/map/DrawToolbar";
+import { ShapeDetailsPanel } from "@/components/sidebar/ShapeDetailsPanel";
 import { useShapes } from "@/hooks/use-shapes";
 import { useToast } from "@/hooks/use-toast";
 
@@ -12,6 +13,8 @@ export default function Home() {
   
   const { shapes, addShape, removeShape } = useShapes();
   const { toast } = useToast();
+
+  const selectedShape = shapes.find(s => s.id === selectedShapeId) || null;
 
   const handleExport = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(shapes, null, 2));
@@ -43,13 +46,28 @@ export default function Home() {
         />
       </div>
 
-      {/* Left Toolbar */}
-      <div className="absolute left-6 top-1/2 -translate-y-1/2 z-20">
-        <DrawToolbar
-          mode={drawingMode}
-          setMode={setDrawingMode}
-          onCancel={() => setDrawingMode("select")}
-        />
+      {/* Left Interface Area */}
+      <div className="absolute left-6 top-6 bottom-6 z-20 flex gap-6 pointer-events-none">
+        {/* Left Toolbar */}
+        <div className="flex flex-col justify-center pointer-events-auto">
+          <DrawToolbar
+            mode={drawingMode}
+            setMode={setDrawingMode}
+            onCancel={() => setDrawingMode("select")}
+          />
+        </div>
+
+        {/* Left Details Panel (Floating) */}
+        <div className="h-full pointer-events-auto">
+          <ShapeDetailsPanel
+            shape={selectedShape}
+            onClose={() => setSelectedShapeId(null)}
+            onDelete={(id) => {
+              removeShape(id);
+              setSelectedShapeId(null);
+            }}
+          />
+        </div>
       </div>
 
       {/* Right Sidebar - Floating Card Style */}
